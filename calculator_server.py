@@ -1,11 +1,9 @@
 from mcp.server.fastmcp import FastMCP
 import math
 import numpy as np
-from numba import jit
 from scipy import stats
 from sympy import symbols, solve, sympify, diff, integrate, oo, Sum
 from typing import List, Tuple
-from pydantic import Field
 import matplotlib.pyplot as plt
 import sympy as sp
 import numpy as np
