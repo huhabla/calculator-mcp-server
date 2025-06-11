@@ -57,3 +57,5 @@ coverage.xml
 # Project specific
 .fastmcp/
 /CLAUDE.md
+a.ipynb
+system_prompt.txt

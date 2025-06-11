@@ -1,18 +1,74 @@
 from mcp.server.fastmcp import FastMCP
 import math
 import numpy as np
+from numba import jit
 from scipy import stats  # Importing scipy for advanced statistical functions
-from sympy import symbols, solve, sympify, diff, integrate
+from sympy import symbols, solve, sympify, diff, integrate, oo
 from typing import List, Tuple
 from pydantic import Field
+import matplotlib.pyplot as plt  # Importing matplotlib for plotting
+import sympy as sp
+import numpy as np
+import matplotlib.pyplot as plt
+from sympy import integrate as sympy_integrate
 
 # Create MCP Server
 app = FastMCP(
     title="Mathematical Calculator",
     description="A server for complex mathematical calculations",
     version="1.0.0",
-    dependencies=["numpy", "scipy", "sympy"]
+    dependencies=["numpy", "scipy", "sympy"],
 )
+
+ALLOW_FUNCTION = {
+    "math": math,
+    "np": np,
+    "sin": math.sin,
+    "cos": math.cos,
+    "tan": math.tan,
+    "exp": math.exp,
+    "log": math.log,
+    "log10": math.log10,
+    "sqrt": math.sqrt,
+    "pi": math.pi,
+    "e": math.e,
+    "abs": abs,
+    "asin": math.asin,
+    "acos": math.acos,
+    "atan": math.atan,
+    "cot": lambda x: 1 / math.tan(x),
+    "csc": lambda x: 1 / math.sin(x),
+    "sec": lambda x: 1 / math.cos(x),
+    "ceil": math.ceil,
+    "floor": math.floor,
+    "round": round,
+    "factorial": math.factorial,
+    "gamma": math.gamma,
+    "erf": math.erf,
+    "erfc": math.erfc,
+    "lgamma": math.lgamma,
+    "degrees": math.degrees,
+    "radians": math.radians,
+    "isfinite": math.isfinite,
+    "isinf": math.isinf,
+    "isnan": math.isnan,
+    "isqrt": math.isqrt,
+    "prod": np.prod,
+    "mean": np.mean,
+    "median": np.median,
+    "std": np.std,
+    "var": np.var,
+    "min": np.min,
+    "max": np.max,
+    "sum": np.sum,
+    "cumsum": np.cumsum,
+    "cumprod": np.cumprod,
+    "clip": np.clip,
+    "unique": np.unique,
+    "sort": np.sort,
+    "argsort": np.argsort,
+    "argmax": np.argmax,
+}
 
 
 @app.tool()
@@ -41,22 +97,19 @@ def calculate(expression: str) -> dict:
         {'result': 4.0}
         >>> calculate("invalid * expression")
         {'error': "name 'invalid' is not defined"}
+
+    Notes:
+        - Use 'x' as the variable (e.g., x**2, not x²)
+        - Multiplication must be explicitly indicated with * (e.g., 2*x, not 2x)
+        - Powers are represented with ** (e.g., x**2, not x^2)
     """
     try:
         # Safe evaluation of the expression
-        result = eval(expression, {"__builtins__": {}}, {
-            "math": math,
-            "np": np,
-            "sin": math.sin,
-            "cos": math.cos,
-            "tan": math.tan,
-            "exp": math.exp,
-            "log": math.log,
-            "log10": math.log10,
-            "sqrt": math.sqrt,
-            "pi": math.pi,
-            "e": math.e
-        })
+        result = eval(
+            expression,
+            {"__builtins__": {}},
+            ALLOW_FUNCTION,
+        )
         return {"result": result}
     except Exception as e:
         return {"error": str(e)}
@@ -94,9 +147,9 @@ def solve_equation(equation: str) -> dict:
         - Powers are represented with ** (e.g., x**2, not x^2)
     """
     try:
-        x = symbols('x')
+        x = symbols("x")
         # Split the equation into left and right sides
-        parts = equation.split('=')
+        parts = equation.split("=")
         if len(parts) != 2:
             return {"error": "Equation must contain an '=' sign"}
 
@@ -142,6 +195,7 @@ def differentiate(expression: str, variable: str = "x") -> dict:
         - Use mathematical notation with explicit operators (* for multiplication)
         - Powers are represented with ** (e.g., x**2, not x^2)
         - For trigonometric functions, use sin(x), cos(x), etc.
+        - Only support for one variable at a time (implicit differentiation not supported)
     """
     try:
         var = symbols(variable)
@@ -151,8 +205,6 @@ def differentiate(expression: str, variable: str = "x") -> dict:
     except Exception as e:
         return {"error": str(e)}
 
-
-from sympy import integrate as sympy_integrate
 
 @app.tool()
 def integrate(expression: str, variable: str = "x") -> dict:
@@ -393,7 +445,12 @@ def confidence_interval(data: List[float], confidence: float = 0.95) -> dict:
         mean_value = np.mean(data)
         sem = stats.sem(data)  # Standard error of the mean
         margin_of_error = sem * stats.t.ppf((1 + confidence) / 2, len(data) - 1)
-        return {"confidence_interval": (float(mean_value - margin_of_error), float(mean_value + margin_of_error))}
+        return {
+            "confidence_interval": (
+                float(mean_value - margin_of_error),
+                float(mean_value + margin_of_error),
+            )
+        }
     except Exception as e:
         return {"error": str(e)}
 
@@ -423,7 +480,9 @@ def matrix_addition(matrix_a: List[List[float]], matrix_b: List[List[float]]) ->
 
 
 @app.tool()
-def matrix_multiplication(matrix_a: List[List[float]], matrix_b: List[List[float]]) -> dict:
+def matrix_multiplication(
+    matrix_a: List[List[float]], matrix_b: List[List[float]]
+) -> dict:
     """
     Multiplies two matrices.
 
@@ -469,5 +528,233 @@ def matrix_transpose(matrix: List[List[float]]) -> dict:
         return {"error": str(e)}
 
 
+@app.tool()
+def matrix_determinant(matrix: List[List[float]]) -> dict:
+    """
+    Multiplies two matrices.
+
+    Args:
+        matrix: The first vector as a list of lists.
+
+    Returns:
+        On success: {"result": <resulting vector>}
+        On error: {"error": <error message>}
+
+    Examples:
+        >>> matrix_determinant([[1, 2], [3, 4]])
+        {'result': [-2.0]}
+    """
+    try:
+        result = np.linalg.det(matrix).tolist()
+        return {"result": result}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.tool()
+def vector_dot_product(vector_a: tuple[float], vector_b: tuple[float]) -> dict:
+    """
+    Multiplies two matrices.
+
+    Args:
+        vector_a: The first vector as a list of lists.
+        vector_b: The second vector as a list of lists.
+
+    Returns:
+        On success: {"result": <resulting vector>}
+        On error: {"error": <error message>}
+
+    Examples:
+        >>> vector_dot_product([1, 2], [7, 8])
+        {'result': [11]}
+    """
+    try:
+        result = np.dot(vector_a, vector_b).tolist()
+        return {"result": result}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.tool()
+def vector_cross_product(vector_a: tuple[float], vector_b: tuple[float]) -> dict:
+    """
+    Multiplies two matrices.
+
+    Args:
+        vector_a: The first vector as a list of lists.
+        vector_b: The second vector as a list of lists.
+
+    Returns:
+        On success: {"result": <resulting vector>}
+        On error: {"error": <error message>}
+
+    Examples:
+        >>> vector_cross_product([1, 2, 3], [4, 5, 6])
+        {'result': [-3, 6, -3]}
+    """
+    try:
+        result = np.cross(vector_a, vector_b).tolist()
+        return {"result": result}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.tool()
+def vector_magnitude(vector: tuple[float]) -> dict:
+    """
+    Multiplies two matrices.
+
+    Args:
+        vector: The first vector as a list of lists.
+
+    Returns:
+        On success: {"result": <resulting vector>}
+        On error: {"error": <error message>}
+
+    Examples:
+        >>> vector_magnitude([1, 2, 3])
+        {'result': [3.7416573867739413]}
+    """
+    try:
+        result = np.linalg.norm(vector).tolist()
+        return {"result": result}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.tool()
+def plot_function(
+    expression: str, start: int = -10, end: int = 10, step: int = 100
+) -> dict:
+    """
+    Plots a graph of y = f(x).
+
+    Args:
+        x: The expression of function x as a string.
+
+    Returns:
+        On success: {"result": "Plot generated successfully."}
+        On error: {"error": <error message>}
+
+    Examples:
+        >>> plot_graph("x**2")
+        {'result': "Plot generated successfully."}
+    Notes:
+        - Use 'x' as the variable (e.g., x**2, not x²)
+        - Multiplication must be explicitly indicated with * (e.g., 2*x, not 2x)
+        - Powers are represented with ** (e.g., x**2, not x^2)
+    """
+    x = sp.Symbol("x")  # Define the symbolic variable
+    try:
+        # Parse the expression
+        expression = sp.sympify(expression)
+        # Convert the symbolic expression to a NumPy function
+        f = sp.lambdify(x, expression, "numpy")
+        # Generate x values
+        x_values = np.linspace(start, end, step)
+        # Calculate y values using the generated function
+        y_values = f(x_values)
+        # Create a figure and axes
+        fig, ax = plt.subplots()
+        # Move the axes to the center
+        ax.spines["left"].set_position("center")
+        ax.spines["bottom"].set_position("center")
+        ax.spines["right"].set_color("none")
+        ax.spines["top"].set_color("none")
+        # Ensure ticks are on the axes
+        ax.xaxis.set_ticks_position("bottom")
+        ax.yaxis.set_ticks_position("left")
+        # Plot the function
+        ax.plot(x_values, y_values)
+        # Set labels and title
+        ax.set_xlabel("x", loc="right")
+        ax.set_ylabel("f(x)", loc="top")
+        ax.set_title(f"Graph of ${sp.latex(expression)}$")
+        # Add grid
+        ax.grid(True)
+        # Show the plot
+        plt.show()
+        return {"result": "Plot generated successfully."}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.tool()
+def summation(expression: str, start: int = 0, end: int = 10) -> dict:
+    """
+    Calculates the summation of a function from start to end.
+
+    Args:
+        expression: The expression of function x as a string.
+        start: The starting value of the summation.
+        end: The ending value of the summation.
+
+    Returns:
+        On success: {"result": <resulting summation>}
+        On error: {"error": <error message>}
+
+    Examples:
+        >>> summation("x**2", 0, 10)
+        {'result': 385}
+    """
+    try:
+        x = sp.Symbol("x")
+        summation = summation(expression, (x, start, end))
+        return {"result": summation}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.tool()
+def expend(expression: str) -> dict:
+    """
+    Expands an expression.
+
+    Args:
+        expression: The expression to expand as a string.
+
+    Returns:
+        On success: {"result": <expanded expression>}
+        On error: {"error": <error message>}
+
+    Examples:
+        >>> expand("(x + 1)**2")
+        {'result': 'x**2 + 2*x + 1'}
+    """
+    try:
+        x = sp.Symbol("x")
+        expanded_expression = sp.expand(expression)
+        return {"result": expanded_expression}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.tool()
+def factorize(expression: str) -> dict:
+    """
+    Factorizes an expression.
+
+    Args:
+        expression: The expression to factorize as a string.
+
+    Returns:
+        On success: {"result": <factored expression>}
+        On error: {"error": <error message>}
+
+    Examples:
+        >>> factorize("x**2 + 2*x + 1")
+        {'result': '(x + 1)**2'}
+    """
+    try:
+        x = sp.Symbol("x")
+        factored_expression = sp.factor(expression)
+        return {"result": factored_expression}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.resource("/allowed_functions")
+async def allowed_functions() -> dict:
+    return ALLOW_FUNCTION
+
 if __name__ == "__main__":
-    app.run()
+    app.run(transport="sse")
