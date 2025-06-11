@@ -2,11 +2,11 @@ from mcp.server.fastmcp import FastMCP
 import math
 import numpy as np
 from numba import jit
-from scipy import stats  # Importing scipy for advanced statistical functions
-from sympy import symbols, solve, sympify, diff, integrate, oo
+from scipy import stats
+from sympy import symbols, solve, sympify, diff, integrate, oo, Sum
 from typing import List, Tuple
 from pydantic import Field
-import matplotlib.pyplot as plt  # Importing matplotlib for plotting
+import matplotlib.pyplot as plt
 import sympy as sp
 import numpy as np
 import matplotlib.pyplot as plt
@@ -19,6 +19,8 @@ app = FastMCP(
     version="1.0.0",
     dependencies=["numpy", "scipy", "sympy"],
 )
+
+TRANSPORT = "sse"
 
 ALLOW_FUNCTION = {
     "math": math,
@@ -644,35 +646,25 @@ def plot_function(
         - Multiplication must be explicitly indicated with * (e.g., 2*x, not 2x)
         - Powers are represented with ** (e.g., x**2, not x^2)
     """
-    x = sp.Symbol("x")  # Define the symbolic variable
+    x = sp.Symbol("x")
     try:
-        # Parse the expression
         expression = sp.sympify(expression)
-        # Convert the symbolic expression to a NumPy function
         f = sp.lambdify(x, expression, "numpy")
-        # Generate x values
         x_values = np.linspace(start, end, step)
-        # Calculate y values using the generated function
         y_values = f(x_values)
-        # Create a figure and axes
         fig, ax = plt.subplots()
-        # Move the axes to the center
+        # Create quadrant graph
         ax.spines["left"].set_position("center")
         ax.spines["bottom"].set_position("center")
         ax.spines["right"].set_color("none")
         ax.spines["top"].set_color("none")
-        # Ensure ticks are on the axes
         ax.xaxis.set_ticks_position("bottom")
         ax.yaxis.set_ticks_position("left")
-        # Plot the function
         ax.plot(x_values, y_values)
-        # Set labels and title
         ax.set_xlabel("x", loc="right")
         ax.set_ylabel("f(x)", loc="top")
         ax.set_title(f"Graph of ${sp.latex(expression)}$")
-        # Add grid
         ax.grid(True)
-        # Show the plot
         plt.show()
         return {"result": "Plot generated successfully."}
     except Exception as e:
@@ -699,7 +691,7 @@ def summation(expression: str, start: int = 0, end: int = 10) -> dict:
     """
     try:
         x = sp.Symbol("x")
-        summation = summation(expression, (x, start, end))
+        summation = sp.Sum(expression, (x, start, end))
         return {"result": summation}
     except Exception as e:
         return {"error": str(e)}
@@ -752,9 +744,5 @@ def factorize(expression: str) -> dict:
     except Exception as e:
         return {"error": str(e)}
 
-@app.resource("/allowed_functions")
-async def allowed_functions() -> dict:
-    return ALLOW_FUNCTION
-
 if __name__ == "__main__":
-    app.run(transport="sse")
+    app.run(transport=TRANSPORT)
