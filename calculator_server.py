@@ -542,11 +542,11 @@ def matrix_determinant(matrix: List[List[float]]) -> dict:
 
     Examples:
         >>> matrix_determinant([[1, 2], [3, 4]])
-        {'result': [-2.0]}
+        {'result': -2.0}
     """
     try:
-        result = np.linalg.det(matrix).tolist()
-        return {"result": result}
+        result = np.linalg.det(matrix)
+        return {"result": round(float(result), 10)}
     except Exception as e:
         return {"error": str(e)}
 
@@ -566,7 +566,7 @@ def vector_dot_product(vector_a: tuple[float], vector_b: tuple[float]) -> dict:
 
     Examples:
         >>> vector_dot_product([1, 2], [7, 8])
-        {'result': [11]}
+        {'result': 23}
     """
     try:
         result = np.dot(vector_a, vector_b).tolist()
@@ -613,7 +613,7 @@ def vector_magnitude(vector: tuple[float]) -> dict:
 
     Examples:
         >>> vector_magnitude([1, 2, 3])
-        {'result': [3.7416573867739413]}
+        {'result': 3.7416573867739413}
     """
     try:
         result = np.linalg.norm(vector).tolist()
@@ -637,8 +637,9 @@ def plot_function(
         On error: {"error": <error message>}
 
     Examples:
-        >>> plot_graph("x**2")
-        {'result': "Plot generated successfully."}
+        >>> plot_function("x**2")
+        {'result': 'Plot generated successfully.'}
+
     Notes:
         - Use 'x' as the variable (e.g., x**2, not x²)
         - Multiplication must be explicitly indicated with * (e.g., 2*x, not 2x)
@@ -689,14 +690,16 @@ def summation(expression: str, start: int = 0, end: int = 10) -> dict:
     """
     try:
         x = sp.Symbol("x")
-        summation = sp.Sum(expression, (x, start, end))
-        return {"result": summation}
+        expr = sp.sympify(expression)
+        summation = sp.Sum(expr, (x, start, end))
+        result = summation.doit()
+        return {"result": int(result) if result.is_integer else float(result)}
     except Exception as e:
         return {"error": str(e)}
 
 
 @app.tool()
-def expend(expression: str) -> dict:
+def expand(expression: str) -> dict:
     """
     Expands an expression.
 
@@ -714,7 +717,7 @@ def expend(expression: str) -> dict:
     try:
         x = sp.Symbol("x")
         expanded_expression = sp.expand(expression)
-        return {"result": expanded_expression}
+        return {"result": str(expanded_expression)}
     except Exception as e:
         return {"error": str(e)}
 
@@ -738,7 +741,7 @@ def factorize(expression: str) -> dict:
     try:
         x = sp.Symbol("x")
         factored_expression = sp.factor(expression)
-        return {"result": factored_expression}
+        return {"result": str(factored_expression)}
     except Exception as e:
         return {"error": str(e)}
 
