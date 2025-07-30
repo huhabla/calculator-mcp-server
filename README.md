@@ -58,15 +58,7 @@ The Mathematical Calculator MCP Server provides the following tools:
 
 ## Integration with Claude Desktop
 
-### Method 1: Run directly with uvx (no installation required)
-
-You can run the calculator server directly from the GitHub repository using uvx:
-
-```bash
-uvx --from calculator-mcp-server@git+https://github.com/huhabla/calculator-mcp-server.git calculator-mcp-server
-```
-
-### Method 2: Configure in Claude Desktop
+### Method 1: Configure in Claude Desktop
 
 Add the server to your Claude Desktop configuration file:
 
@@ -83,14 +75,18 @@ Add the following to the `mcpServers` section:
       "args": [
         "--from",
         "calculator-mcp-server@git+https://github.com/huhabla/calculator-mcp-server.git",
-        "calculator-mcp-server"
+        "--",
+        "calculator-mcp-server",
+        "--stdio"
       ]
     }
   }
 }
 ```
 
-### Method 3: Install with FastMCP
+**Note**: The `--stdio` flag is required for proper integration with Claude Desktop. The `--` separates uvx arguments from the calculator server arguments.
+
+### Method 2: Install with FastMCP
 
 1. Make sure you have uv installed ([Installation Guide](https://github.com/astral-sh/uv))
 
