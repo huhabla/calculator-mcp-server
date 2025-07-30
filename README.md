@@ -63,7 +63,7 @@ The Mathematical Calculator MCP Server provides the following tools:
 You can run the calculator server directly from the GitHub repository using uvx:
 
 ```bash
-uvx --from calculator-mcp-server@git+https://github.com/hughescr/calculator-mcp-server.git calculator-mcp-server
+uvx --from calculator-mcp-server@git+https://github.com/huhabla/calculator-mcp-server.git calculator-mcp-server
 ```
 
 ### Method 2: Configure in Claude Desktop
@@ -82,7 +82,7 @@ Add the following to the `mcpServers` section:
       "command": "uvx",
       "args": [
         "--from",
-        "calculator-mcp-server@git+https://github.com/hughescr/calculator-mcp-server.git",
+        "calculator-mcp-server@git+https://github.com/huhabla/calculator-mcp-server.git",
         "calculator-mcp-server"
       ]
     }
