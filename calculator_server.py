@@ -742,5 +742,8 @@ def factorize(expression: str) -> dict:
     except Exception as e:
         return {"error": str(e)}
 
-if __name__ == "__main__":
+def main():
     app.run(transport=TRANSPORT)
+
+if __name__ == "__main__":
+    main()
