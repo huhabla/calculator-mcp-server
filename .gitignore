@@ -56,6 +56,10 @@ coverage.xml
 
 # Project specific
 .fastmcp/
-/CLAUDE.md
 a.ipynb
 system_prompt.txt
+
+# Local configuration and test files
+claude_desktop_config.json
+test_import.py
+test_stdio.py

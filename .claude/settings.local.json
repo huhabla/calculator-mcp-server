@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venvScriptspip.exe install matplotlib)",
+      "Bash(./venv/Scripts/pip.exe install matplotlib)",
+      "Bash(pip install:*)",
+      "Bash(bash:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
