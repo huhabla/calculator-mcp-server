@@ -7,7 +7,7 @@ name = "calculator-mcp-server"
 version = "1.0.0"
 description = "A server for complex mathematical calculations"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "fastmcp>=0.4.1",
     "numpy>=2.2.0",
