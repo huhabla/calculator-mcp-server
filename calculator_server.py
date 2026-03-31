@@ -1,7 +1,9 @@
 from mcp.server.fastmcp import FastMCP
 import argparse
 import math
+import re
 import numpy as np
+from pydantic import BaseModel
 from scipy import stats
 from sympy import symbols, solve, sympify, diff, integrate, oo, Sum
 from typing import List, Tuple
@@ -13,9 +15,7 @@ from sympy import integrate as sympy_integrate
 
 # Create MCP Server
 app = FastMCP(
-    title="Mathematical Calculator",
-    description="A server for complex mathematical calculations",
-    version="1.0.0",
+    name="Mathematical Calculator",
     dependencies=["numpy", "scipy", "sympy", "matplotlib"],
 )
 
@@ -114,6 +114,132 @@ def calculate(expression: str) -> dict:
         return {"result": result}
     except Exception as e:
         return {"error": str(e)}
+
+
+class CalculationStep(BaseModel):
+    id: str
+    expression: str
+
+
+def _topological_sort(steps: List[CalculationStep]) -> List[str]:
+    """Return step ids in dependency order. Raises ValueError on cycles."""
+    # Build adjacency: id -> set of ids it depends on
+    step_ids = {s.id for s in steps}
+    deps: dict[str, set[str]] = {}
+    for s in steps:
+        refs = set(re.findall(r"\$([A-Za-z_]\w*)", s.expression))
+        deps[s.id] = refs & step_ids  # only track refs that are actual step ids
+
+    # Kahn's algorithm
+    in_degree = {sid: 0 for sid in step_ids}
+    dependents: dict[str, list[str]] = {sid: [] for sid in step_ids}
+    for sid, dep_set in deps.items():
+        in_degree[sid] = len(dep_set)
+        for d in dep_set:
+            dependents[d].append(sid)
+
+    queue = [sid for sid in step_ids if in_degree[sid] == 0]
+    order = []
+    while queue:
+        node = queue.pop(0)
+        order.append(node)
+        for dependent in dependents[node]:
+            in_degree[dependent] -= 1
+            if in_degree[dependent] == 0:
+                queue.append(dependent)
+
+    if len(order) != len(step_ids):
+        cycle_ids = step_ids - set(order)
+        raise ValueError(f"Circular dependency detected among steps: {sorted(cycle_ids)}")
+
+    return order
+
+
+@app.tool()
+def batch_calculate(steps: List[CalculationStep]) -> dict:
+    """
+    Evaluates multiple mathematical expressions in a single call, with support
+    for result dependencies between steps.
+
+    Each step has an 'id' and an 'expression'. Expressions can reference the
+    result of a prior step using $id syntax (e.g., $step1). Steps are
+    automatically sorted by dependency order — list position does not matter.
+
+    Args:
+        steps: A list of calculation steps, each with:
+               - id: A unique identifier for the step (e.g., "area", "step1")
+               - expression: The math expression to evaluate. Use $id to
+                 reference a prior step's result.
+
+    Returns:
+        {"results": {id: {"result": value} | {"error": msg} | {"skipped": reason}}}
+
+    Examples:
+        >>> batch_calculate([
+        ...     CalculationStep(id="a", expression="2 + 3"),
+        ...     CalculationStep(id="b", expression="10 * 2"),
+        ... ])
+        {'results': {'a': {'result': 5}, 'b': {'result': 20}}}
+
+        >>> batch_calculate([
+        ...     CalculationStep(id="radius", expression="5"),
+        ...     CalculationStep(id="area", expression="pi * $radius ** 2"),
+        ... ])
+        {'results': {'radius': {'result': 5}, 'area': {'result': 78.53981633974483}}}
+
+        >>> batch_calculate([
+        ...     CalculationStep(id="a", expression="$b + 1"),
+        ...     CalculationStep(id="b", expression="$a + 1"),
+        ... ])
+        {'results': {'error': "Circular dependency detected among steps: ['a', 'b']"}}
+
+    Notes:
+        - Use $id to reference a prior step's result (e.g., $step1, $area)
+        - Step ids must be unique and use letters, digits, or underscores
+        - If a step fails, all steps that depend on it are skipped
+        - Independent steps (no cross-references) all execute normally
+        - Same math functions available as in calculate (sin, cos, sqrt, etc.)
+    """
+    # Validate unique ids
+    ids = [s.id for s in steps]
+    if len(ids) != len(set(ids)):
+        return {"results": {"error": "Duplicate step ids found"}}
+
+    # Topological sort
+    try:
+        order = _topological_sort(steps)
+    except ValueError as e:
+        return {"results": {"error": str(e)}}
+
+    step_map = {s.id: s for s in steps}
+    results: dict[str, dict] = {}
+    resolved: dict[str, float | int] = {}  # id -> numeric result for substitution
+
+    for sid in order:
+        step = step_map[sid]
+        expr = step.expression
+
+        # Check if any dependency failed/was skipped
+        refs = set(re.findall(r"\$([A-Za-z_]\w*)", expr))
+        step_refs = refs & set(ids)
+        failed_deps = [r for r in step_refs if r not in resolved]
+        if failed_deps:
+            results[sid] = {"skipped": f"Upstream step(s) failed: {sorted(failed_deps)}"}
+            continue
+
+        # Substitute $references with resolved values
+        for ref_id in step_refs:
+            expr = re.sub(rf"\${ref_id}\b", str(resolved[ref_id]), expr)
+
+        # Evaluate using same sandboxed eval as calculate()
+        try:
+            result = eval(expr, {"__builtins__": {}}, ALLOW_FUNCTION)  # noqa: S307 - intentional sandboxed eval matching existing calculate()
+            results[sid] = {"result": result}
+            resolved[sid] = result
+        except Exception as e:
+            results[sid] = {"error": str(e)}
+
+    return {"results": results}
 
 
 @app.tool()

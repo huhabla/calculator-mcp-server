@@ -7,6 +7,7 @@ This is a Model Context Protocol (MCP) server that provides Claude with advanced
 The Mathematical Calculator MCP Server provides the following tools:
 
 - **Basic Calculations**: Evaluate mathematical expressions safely
+- **Batch Calculations**: Submit multiple calculations in a single call with dependency chaining
 - **Symbolic Mathematics**:
   - Solve equations (linear, quadratic, polynomial, etc.)
   - Calculate derivatives of expressions
@@ -34,26 +35,25 @@ The Mathematical Calculator MCP Server provides the following tools:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/huhabla/calculator-mcp-server.git
+   git clone https://github.com/2b3pro/calculator-mcp-server.git
    cd calculator-mcp-server
    ```
 
-2. (Option 1) Setup with the provided script:
+2. Install with uv (recommended):
    ```bash
-   chmod +x setup_venv.sh
-   ./setup_venv.sh
+   uv sync
    ```
 
-   (Option 2) Or manually set up the virtual environment:
+   Or with pip:
    ```bash
    python3 -m venv venv
    source venv/bin/activate
-   pip install -r requirements.txt
+   pip install -e .
    ```
 
 3. Run doc-tests to verify everything works:
    ```bash
-   bash run_doctests.sh
+   python3 -m doctest calculator_server.py -v
    ```
 
 ## Integration with Claude Desktop
@@ -62,7 +62,7 @@ The Mathematical Calculator MCP Server provides the following tools:
 
 Add the server to your Claude Desktop configuration file:
 
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`  
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
 Add the following to the `mcpServers` section:
@@ -74,7 +74,7 @@ Add the following to the `mcpServers` section:
       "command": "uvx",
       "args": [
         "--from",
-        "calculator-mcp-server@git+https://github.com/huhabla/calculator-mcp-server.git",
+        "calculator-mcp-server@git+https://github.com/2b3pro/calculator-mcp-server.git",
         "--",
         "calculator-mcp-server",
         "--stdio"
@@ -109,6 +109,29 @@ After integrating with Claude Desktop, you can ask Claude to perform various mat
 ### Basic Calculations
 ```
 Can you calculate 3.5^2 * sin(pi/4)?
+```
+
+### Batch Calculations
+
+Submit multiple calculations in one call, with results from earlier steps feeding into later ones:
+
+```
+Calculate these in one batch:
+- step "radius": 5
+- step "area": pi * $radius ** 2
+- step "circumference": 2 * pi * $radius
+```
+
+This sends a single request to the server and returns all three results. The `$radius` references are automatically resolved from the first step's result.
+
+Dependency chaining example:
+```
+Batch calculate:
+- step "base": 100
+- step "tax": $base * 0.08
+- step "total": $base + $tax
+- step "tip": $total * 0.20
+- step "grand_total": $total + $tip
 ```
 
 ### Solving Equations
@@ -151,18 +174,24 @@ and
 
 ## Development
 
+### Running Locally
+
+```bash
+uv run calculator_server.py
+```
+
 ### Testing
 
-Run the comprehensive doctest suite:
+Run doctests:
 ```bash
-bash run_doctests.sh
+uv run python -m doctest calculator_server.py -v
 ```
 
 ### Interactive Development Mode
 
 For development and debugging, you can use the FastMCP development mode:
 ```bash
-fastmcp dev calculator_server.py
+uv run fastmcp dev calculator_server.py
 ```
 
 This will start a local web interface where you can test all tools interactively.
