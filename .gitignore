@@ -59,3 +59,4 @@ coverage.xml
 /CLAUDE.md
 a.ipynb
 system_prompt.txt
+uv.lock
